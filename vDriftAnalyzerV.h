@@ -64,15 +64,17 @@ struct DetPairStaticInfo {
   const char *treeName{};
   const char *masterYLeafName{};
   const char *slaveYLeafName{};
+  float tofFactor{1.};
+  std::pair<float,float> yLimits{};
 };
 
 std::array<DetPairStaticInfo, std::size_t(kDetPairs)> gSTATIC_INFO{
     {
-        {kMTPCLvsTOFL, "MTPCLvsTOFL", "tofY", "slave_Y"},
-        {kMTPCRvsTOFR, "MTPCRvsTOFR", "tofY", "slave_Y"},
-        {kVTPC2vsMTPCL, "VTPC2vsMTPCL", "master_Y", "slave_Y"},
-        {kVTPC2vsMTPCR, "VTPC2vsMTPCR", "master_Y", "slave_Y"},
-        {kVTPC1vsVTPC2, "VTPC2vsMTPCR", "master_Y", "slave_Y"},
+        {kMTPCLvsTOFL, "MTPCLvsTOFL", "tofY", "slave_Y", 2.0, {-60, 60}},
+        {kMTPCRvsTOFR, "MTPCRvsTOFR", "tofY", "slave_Y", 2.0, {-60, 60}},
+        {kVTPC2vsMTPCL, "VTPC2vsMTPCL", "master_Y", "slave_Y", 1.0, {-40, 40}},
+        {kVTPC2vsMTPCR, "VTPC2vsMTPCR", "master_Y", "slave_Y", 1.0, {-40, 40}},
+        {kVTPC1vsVTPC2, "VTPC1vsVTPC2", "master_Y", "slave_Y", 1.0, {-20, 20}},
     }
 };
 

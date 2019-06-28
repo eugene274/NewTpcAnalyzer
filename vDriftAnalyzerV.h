@@ -48,7 +48,9 @@ const int error_code[] = {10, 11, 12, 13, 14};
 #pragma pack(push, 1)
 struct vDriftTreeStructure {
   double slave_Y;
+  double slave_X;
   double master_Y;
+  double master_X;
   double slave_recVDrift;
   int sectionID;
   unsigned int runNumber;
@@ -125,21 +127,27 @@ void ReadBranchesFromTree(TTree *tree, vDriftTreeStructure &data, std::string op
   if (optSwap == "") {
     if (s_name.find("TOF") != std::string::npos) {
       tree->SetBranchAddress("tofY", &data.master_Y);
+      tree->SetBranchAddress("tofX", &data.master_X);
     } else {
       tree->SetBranchAddress("master_Y", &data.master_Y);
+      tree->SetBranchAddress("master_X", &data.master_X);
     }
     tree->SetBranchAddress("slave_Y", &data.slave_Y);
+    tree->SetBranchAddress("slave_X", &data.slave_X);
     tree->SetBranchAddress("slave_recVDrift", &data.slave_recVDrift);
   }
   if (optSwap == "swap") {
     if (s_name.find("TOF") != std::string::npos) {
       tree->SetBranchAddress("tofY", &data.slave_Y);
+      tree->SetBranchAddress("tofX", &data.slave_X);
       std::cerr << "[WARNING] ReadBranchesFromTree(): Attempt to read drift velocity from TOF!" << std::endl;
     } else {
       tree->SetBranchAddress("master_Y", &data.slave_Y);
+      tree->SetBranchAddress("master_X", &data.slave_X);
       tree->SetBranchAddress("master_recVDrift", &data.slave_recVDrift);
     }
     tree->SetBranchAddress("slave_Y", &data.master_Y);
+    tree->SetBranchAddress("slave_X", &data.master_X);
   }
   tree->SetBranchAddress("sectionId", &data.sectionID);
   tree->SetBranchAddress("runNumber", &data.runNumber);

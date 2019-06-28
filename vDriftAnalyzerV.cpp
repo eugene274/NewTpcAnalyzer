@@ -156,9 +156,10 @@ int main(int argc, char **argv) {
 
     double smoothingSpan_{300};
 
+    double yBottom_{0};
+
     double xLo{-999};
     double xHi{999};
-
 
     /*** slice data ***/
     vDriftTreeStructure trackMatchData_{};
@@ -166,9 +167,9 @@ int main(int argc, char **argv) {
     TH2D *hdYvsY{nullptr};
     TProfile *pdYvsY{nullptr};
 
-
     TTree *sourceTree_{nullptr};
 
+    TGraph *recvDGraph{nullptr};
 
     TGraphErrors *offsetGraph_{nullptr};
     TGraphErrors *offsetBottomGraph_{nullptr};
@@ -206,6 +207,11 @@ int main(int argc, char **argv) {
       return *this;
     }
 
+    CalibTask_t &bottom(double yb) {
+      this->yBottom_ = yb;
+      return *this;
+    }
+
     CalibTask_t &smoSpan(double span) {
       this->smoothingSpan_ = span;
       return *this;
@@ -218,13 +224,14 @@ int main(int argc, char **argv) {
       delete slopeGraph_;
       delete offsetGraph_;
 
-
       float yLo = gSTATIC_INFO.at(tgt).yLimits.first;
       float yHi = gSTATIC_INFO.at(tgt).yLimits.second;
       hdYvsY = new TH2D("hdYvsY", ";Y (cm); dY (cm)", ny_, yLo, yHi, ndy_, -2., 2.);
       hdYvsY->SetDirectory(nullptr);
       pdYvsY = new TProfile("pdYvsY", ";Y (cm); dY (cm)", ny_, yLo, yHi);
       pdYvsY->SetDirectory(nullptr);
+
+      recvDGraph = new TGraph;
 
       offsetGraph_ = new TGraphErrors;
       offsetBottomGraph_ = new TGraphErrors;
@@ -235,21 +242,20 @@ int main(int argc, char **argv) {
     void initInput(TFile &fIn) {
       delete sourceTree_;
       fIn.GetObject(gSTATIC_INFO.at(tgt).treeName, sourceTree_);
-      ReadBranchesFromTree(sourceTree_, trackMatchData_, swap_? "swap" : "");
+      ReadBranchesFromTree(sourceTree_, trackMatchData_, swap_ ? "swap" : "");
     }
 
     /*** getters ***/
     bool hasUpstream() const { return upstream < kDetPairs; };
   };
 
-
   bool usePropagation = true;
 
   std::vector<CalibTask_t> calibTasks{
-      CalibTask_t("MTPCL", kMTPCLvsTOFL).ne(20000).smoSpan(1800),
-      CalibTask_t("VTPC2", kVTPC2vsMTPCL, kMTPCLvsTOFL).ne(5000).ndy(40).xLim(-110, 60),
-      CalibTask_t("VTPC1", kVTPC1vsVTPC2, kVTPC2vsMTPCL).ne(5000).ndy(40),
-      CalibTask_t("MTPCR", kVTPC2vsMTPCR, kVTPC2vsMTPCL).ne(5000).swap(),
+      CalibTask_t("MTPCL", kMTPCLvsTOFL).ne(20000).smoSpan(1800).bottom(-60),
+      CalibTask_t("VTPC2", kVTPC2vsMTPCL, kMTPCLvsTOFL).ne(2000).ndy(40).xLim(-110, 60).bottom(-55),
+      CalibTask_t("VTPC1", kVTPC1vsVTPC2, kVTPC2vsMTPCL).ne(2000).ndy(40).bottom(-35),
+      CalibTask_t("MTPCR", kVTPC2vsMTPCR, kVTPC2vsMTPCL).ne(2000).swap(),
       CalibTask_t("MTPCRfromTOFR", kMTPCRvsTOFR).ne(20000).smoSpan(1800),
   };
 
@@ -276,15 +282,9 @@ int main(int argc, char **argv) {
       }
     }
 
-
     TDirectory *outDir = f_out->mkdir(calibTask.tgtName.c_str(), "");
 
     Info(__func__, "Processing %s", gSTATIC_INFO.at(calibTask.tgt).treeName);
-
-    // Minimum and maximum of slave
-    double tpcMin = calibTask.sourceTree_->GetMinimum(gSTATIC_INFO.at(calibTask.tgt).slaveYLeafName);
-    double tpcMax = calibTask.sourceTree_->GetMaximum(gSTATIC_INFO.at(calibTask.tgt).slaveYLeafName);
-
 
 
     long nEntries = calibTask.sourceTree_->GetEntries();
@@ -298,6 +298,7 @@ int main(int argc, char **argv) {
 
     long sliceStartUnixTime = -1;
 
+    int iRecVD = 0;
     while (iEntry < nEntries) {
       calibTask.sourceTree_->GetEntry(iEntry);
 
@@ -308,35 +309,39 @@ int main(int argc, char **argv) {
         sliceStartUnixTime = trackMatchData.eventUnixTime;
       }
 
-      ++iSliceEntries;
-
       long unixTime = trackMatchData.eventUnixTime;
       float dy = trackMatchData.slave_Y - trackMatchData.master_Y;
-      float  y = trackMatchData.master_Y;
+      float y = trackMatchData.master_Y;
+      float recVD = trackMatchData.slave_recVDrift;
 
+      if (iRecVD == 0 || unixTime - calibTask.recvDGraph->GetX()[iRecVD - 1] > 5.) {
+        calibTask.recvDGraph->SetPoint(iRecVD, unixTime, recVD);
+        ++iRecVD;
+      }
 
       if (usePropagation && upstreamTask) {
         assert(upstreamTask->isDone_);
         double tofFactor = gSTATIC_INFO.at(upstreamTask->tgt).tofFactor;
-        double upstreamSlope = tofFactor*upstreamTask->slopeGraphSmooth_->Eval(unixTime);
-        double upstreamOffset = tofFactor*upstreamTask->offsetBottomGraphSmooth_->Eval(unixTime);
+        double upstreamSlope = tofFactor * upstreamTask->slopeGraphSmooth_->Eval(unixTime);
+        double upstreamOffset = tofFactor * upstreamTask->offsetBottomGraphSmooth_->Eval(unixTime);
 
-        dy += upstreamSlope*y + upstreamOffset;
+        dy += upstreamSlope * y + upstreamOffset;
       }
 
-
-      if (abs(dy) < 2.) {
+      if (abs(dy) < 2. && (calibTask.xLo < trackMatchData.master_X && trackMatchData.master_X < calibTask.xHi)) {
         calibTask.hdYvsY->Fill(y, dy);
         calibTask.pdYvsY->Fill(y, dy);
-      }
 
+
+        ++iSliceEntries;
+      }
 
       if (iSliceEntries > calibTask.nEntries_) {
         if (calibTask.splitEvents_ || (currentEventNumber != trackMatchData.eventNumber)) {
 
           long sliceEndUnixTime = trackMatchData.eventUnixTime;
           long dT = sliceEndUnixTime - sliceStartUnixTime;
-          double sliceT = (sliceStartUnixTime + sliceEndUnixTime)/2.;
+          double sliceT = (sliceStartUnixTime + sliceEndUnixTime) / 2.;
 
           calibTask.pdYvsY->Fit("pol1", "Q", "");
 
@@ -345,12 +350,11 @@ int main(int argc, char **argv) {
           double offset = fitFun->GetParameter(0);
           double offsetError = fitFun->GetParError(0);
 
-          double offsetBottom = fitFun->Eval(tpcMin);
+          double offsetBottom = fitFun->Eval(calibTask.yBottom_);
           double offsetBottomError = offsetError; // TODO
 
           double slope = fitFun->GetParameter(1);
           double slopeError = fitFun->GetParError(1);
-
 
           calibTask.offsetGraph_->SetPoint(iSlice, sliceT, offset);
           calibTask.offsetGraph_->SetPointError(iSlice, 0., offsetError);
@@ -358,21 +362,16 @@ int main(int argc, char **argv) {
           calibTask.offsetBottomGraph_->SetPoint(iSlice, sliceT, offsetBottom);
           calibTask.offsetBottomGraph_->SetPointError(iSlice, 0., offsetBottomError);
 
-
           calibTask.slopeGraph_->SetPoint(iSlice, sliceT, slope);
           calibTask.slopeGraph_->SetPointError(iSlice, 0., slopeError);
 
-
           outDir->WriteObject(calibTask.hdYvsY, Form("hdYvsY_%d", iSlice));
           outDir->WriteObject(calibTask.pdYvsY, Form("pdYvsY_%d", iSlice));
-
-
 
           Info(__func__, "Slice %d: %d entries", iSlice, iSliceEntries);
           Info(__func__, "dT = %ld sec", dT);
           Info(__func__, "offset = %e +- %e (cm)", offset, offsetError);
           Info(__func__, "slope = %e +- %e (cm)", slope, slopeError);
-
 
           ++iSlice;
           iSliceEntries = 0;
@@ -387,23 +386,34 @@ int main(int argc, char **argv) {
 
     double tStart = calibTask.slopeGraph_->GetX()[0];
     double tEnd = calibTask.slopeGraph_->GetX()[calibTask.slopeGraph_->GetN() - 1];
-    double span = calibTask.smoothingSpan_/(tEnd - tStart);
+    double span = calibTask.smoothingSpan_ / (tEnd - tStart);
 
     {
       TGraphSmooth graphSmoothManager;
       calibTask.slopeGraphSmooth_ =
-          new TGraphErrors(*dynamic_cast<TGraphErrors*>(graphSmoothManager.SmoothLowess(calibTask.slopeGraph_, "", span)));
+          new TGraphErrors(*dynamic_cast<TGraphErrors *>(graphSmoothManager.SmoothLowess(calibTask.slopeGraph_,
+                                                                                         "",
+                                                                                         span)));
       outDir->WriteObject(calibTask.slopeGraph_, "grSlope");
       outDir->WriteObject(calibTask.slopeGraphSmooth_, "grSlopeLowess");
+      calibTask.slopeGraph_->SetBit(TGraph::kIsSortedX);
+      calibTask.slopeGraphSmooth_->SetBit(TGraph::kIsSortedX);
     }
 
     {
       TGraphSmooth graphSmoothManager;
       calibTask.offsetBottomGraphSmooth_ =
-          new TGraphErrors(*dynamic_cast<TGraphErrors *>(graphSmoothManager.SmoothLowess(calibTask.offsetBottomGraph_, "", span)));
+          new TGraphErrors(*dynamic_cast<TGraphErrors *>(graphSmoothManager.SmoothLowess(calibTask.offsetBottomGraph_,
+                                                                                         "",
+                                                                                         span)));
       outDir->WriteObject(calibTask.offsetGraph_, "grOffset");
       outDir->WriteObject(calibTask.offsetBottomGraph_, "grOffsetBottom");
       outDir->WriteObject(calibTask.offsetBottomGraphSmooth_, "grOffsetBottomLowess");
+      outDir->WriteObject(calibTask.recvDGraph, "grRecVD");
+
+      calibTask.offsetGraph_->SetBit(TGraph::kIsSortedX);
+      calibTask.offsetBottomGraph_->SetBit(TGraph::kIsSortedX);
+      calibTask.offsetBottomGraphSmooth_->SetBit(TGraph::kIsSortedX);
     }
     calibTask.isDone_ = true;
   }

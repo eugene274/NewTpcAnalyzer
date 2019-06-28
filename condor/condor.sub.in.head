@@ -1,0 +1,6 @@
+executable	=	@EXECUTABLE@
++JobFlavour	=	"@QUEUE@"
+log		=	condor.log
+output		=	stdout.log
+error		=	error.log 
+transfer_input_files	=	@TRANSFER_INPUT_FILES@

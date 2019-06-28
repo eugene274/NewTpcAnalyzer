@@ -1,0 +1,359 @@
+---+ Drift velocity calibration instructions
+
+---++ Meetings
+
+   * [[https://indico.cern.ch/category/9919/][Calibration Vidyo]]
+
+---++ Manuals
+
+   * [[%ATTACHURLPATH%/20149424_Calibration_chain_with_shine_offline.pdf][Calibration Chain with Shine Offline Framework]] (by Péter Kövesárki, András László, 2014/04/24)
+   * [[%ATTACHURLPATH%/20140724_Detector_description_Managers_and_Modules_in_Shine_Offline_Framework.pdf][Detector description, Managers and Modules in Shine Offline Framework]] (by András László, Oskar Wyszynski, 2014/07/24)
+   * [[%ATTACHURLPATH%/20160302_NA61_Shine_the_Drift_Velocity_Instructions.pdf][NA61/SHINE the Drift Velocity calibration for dummies]] (by Magdalena Kuich, 2016/03/02)
+
+---++ Step-by-step instructions
+
+Login to CERN via ssh -Y USERNAME@lxplus.cern.ch
+
+Install SHINE ([[https://twiki.cern.ch/twiki/bin/viewauth/NA61/NewOFInstallation#Set_up_the_environmental_var_AN1][official NA61 shine installation wiki]])
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+cd shine_dir (e.g. /afs/cern.ch/work/?/USERNAME/public/shine)
+mkdir shine_src
+mkdir shine_install
+mkdir shine_cmake
+mkdir DB
+svn checkout svn+ssh://svn.cern.ch/reps/na61soft/trunk/Shine shine_src
+svn checkout svn+ssh://svn.cern.ch/reps/na61db/trunk DB/v2
+%ENDCODE%
+</sticky>
+
+Set local DB path, In file "shine_src/Tools/Scripts/env/lxplus_32bit_slc6.sh" change
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+<br>export SHINECALIBHOME=/afs/cern.ch/na61/ReleasesDB  <br>
+%ENDCODE%
+</sticky>
+to 
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+<br>export SHINECALIBHOME=/afs/cern.ch/work/?/USERNAME/public/shine/DB
+%ENDCODE%
+</sticky>
+
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+source shine_src/Tools/Scripts/env/lxplus_32bit_slc6.sh
+cd shine_cmake
+cmake -DPRODUCTION=ON -DCMAKE_INSTALL_PREFIX=../shine_install ../shine_src
+make -j8 install
+%ENDCODE%
+</sticky>
+
+In case of crashes, repeat make command few times (or without -j option). 
+
+Setup shine/root environment after installation
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+source /afs/cern.ch/work/?/USERNAME/public/shine/shine_src/Tools/Scripts/env/lxplus_32bit_slc6.sh
+eval $(/afs/cern.ch/work/?/USERNAME/public/shine/shine_install/bin/shine-offline-config --env-sh)
+%ENDCODE%
+</sticky>
+
+Calibration software directory:
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+cd shine_install/apps/Standard/Calibration
+%ENDCODE%
+</sticky>
+
+---+++Preparation
+
+Before starting TPC calibration make sure that all previous steps done (ask responsible persons):
+
+  As a zeroth step, some of the Legacy chain calibration factors might need to be uploaded to the Legacy DB. Right now, it is only for the
+  TOF correction factors. Ask Seweryn Kowalski to create a new GlobalKey for that.
+
+  As a first step, update (or create new) calibration files for the
+  Managers of Shine, which feed the detector data to the Shine Detector
+  class.
+
+---+++++ RunLog information:
+    update the file Shine_source/Data/elog/RunLogTable.txt using the instructions at Shine_source/Data/elog/README file. In the
+    Shine_build directory, say 'make install', so that it is copied to your Shine installation directory. You can commit it to svn with 'svn commit'. Anar Rustamov, Sasha Sadovsky.
+
+---+++++ Target configuration:
+    this is read by the TargetConfigXMLManager, its files are located
+    under Target directory. Do 'svn copy' of some later directory, such
+    as V16A in order to create a new Target setting, and then edit the
+    file TargetConfig.xml with the new Target settings and run ranges.
+    Seweryn Kowalski.
+
+---+++++ TPC Slow Control (DCS) data:
+    these data are produced by the scripts of DCS group, and is read
+    by the TPCSlowControlDCSDumpManager, its files are located under
+    TPC/SlowControl directory. Use the command 'mkdir' and 'svn add'
+    to create a new version directory. Then 'svn copy' the file
+    TPCSlowControlDCSDumpManager.xml from some earlier setting such as
+    V15C, and add there the new DCS dump files with 'svn add'. The dump files are simple time-value series.
+    Tobiasz Czopowicz.
+
+---+++++ TPC drift velocity from DCS dump data:
+    these data are provided by the scripts of the DCS group. But also
+    can be calculated from the above DCS dump, using the helper program
+    Shine_install/apps/Standard/Calibration/DriftVelocityFromSCFiles
+    Once the dump files are available, they can be installed to the DB
+    directory TPC/DriftVelocity/Nominal via the following commands.
+    First, add a new version directory via 'mkdir' and 'svn add', and
+    'svn copy' there the file TPCDriftVelocityDCSDumpManager.xml from some later setting, such as V13L. Then, copy there the drift velocity time-value series files.
+    Tobiasz Czopowicz.
+
+---+++++ BPD positions, Stage0: (do not forget to set correctly the detector configuration)
+    these are read by the BPDGeometryXMLManager, its files are located under BPD/Geometry directory. Do 'svn copy' of some later directory,
+    such as V16A in order to create a new BPD geometry, and then edit the file BPDGeometries.xml with the new positions and run ranges.
+    Updated by Antoni Marcinek. Ideally, should be merged with Stage1.
+
+
+Create new DB entry (global key) where you will store calibration results:
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+
+DB_DIR=/afs/cern.ch/work/v/viklochk/public/DB
+
+DB_KEY_NEW=16_999
+DB_KEY_OLD=16_008
+
+mkdir -p $DB_DIR/v2/Shine/detConfig/$DB_KEY_NEW/
+cp -f $DB_DIR/v2/Shine/detConfig/$DB_KEY_OLD/*  $DB_DIR/v2/Shine/detConfig/$DB_KEY_NEW/
+
+%ENDCODE%
+</sticky>   
+
+GitLab link [[https://gitlab.cern.ch/na61-hic/TpcCalibration][TpcCalibration]] 
+
+---+++Stage1
+
+Test run in interactive mode (how to copy raw file from castor find [[https://twiki.cern.ch/twiki/bin/view/NA61/HowToCastor][here]]):
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+
+cd Stage1
+
+source /afs/cern.ch/work/?/USERNAME/public/shine/shine_src/Tools/Scripts/env/lxplus_32bit_slc6.sh
+eval $(/afs/cern.ch/work/?/USERNAME/public/shine/shine_install/bin/shine-offline-config --env-sh)
+
+make clean && make
+
+./runModuleSeq.sh file1.raw
+./runModuleSeq.sh file2.raw
+
+calibMerge -i `ls tpcPhases*.root | head -c -1 | tr '\n' ','` -o mergedTPCPhases.root
+./TPCPhaseCalibrationCalculator -i mergedTPCPhases.root
+calibMerge -i `ls mhtdcDiffs*.root | head -c -1 | tr '\n' ','` -o mergedMHTDCDiffs.root
+./MHTDCCalibrationCalculator -i mergedMHTDCDiffs.root
+
+%ENDCODE%
+</sticky>   
+
+if everything is working fine use condor_submit.sh for submitting multiple jobs on lxplus
+
+Modify files TpcCalibration/submit/condor_submit.sh TpcCalibration/submit/condor_run.sh (set path to your SHINE, output directories, global_key, ...) and then:
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+
+cd TpcCalibration/submit
+./condor_submit.sh filelist.txt out_dir_name 1
+
+%ENDCODE%
+</sticky>   
+
+where, for example filelist.txt should look 
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+/castor/cern.ch/na61/16/Pb/Pb30/run-026888x000.raw
+/castor/cern.ch/na61/16/Pb/Pb30/run-026888x001.raw
+...
+%ENDCODE%
+</sticky>   
+
+out_dir_name=stage1_26888
+
+And drink a cup of tea =)
+
+Produce .xml files and move them to the DB:
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%    
+
+calibMerge -i `ls tpcPhases*.root | head -c -1 | tr '\n' ','` -o mergedTPCPhases.root
+./TPCPhaseCalibrationCalculator -i mergedTPCPhases.root
+calibMerge -i `ls mhtdcDiffs*.root | head -c -1 | tr '\n' ','` -o mergedMHTDCDiffs.root
+./MHTDCCalibrationCalculator -i mergedMHTDCDiffs.root
+
+T0_VERSION_OLD=V44A
+DAQ_VERSION_OLD=V44A
+T0_VERSION_NEW=V44latest
+DAQ_VERSION_NEW=V44latest
+
+mkdir -p $DB_DIR/v2/Shine/TPC/T0CalibrationData/EventByEvent/V$DB_KEY_NEW/    
+mkdir -p $DB_DIR/v2/Shine/DAQ/MHTDC/V$DB_KEY_NEW/    
+
+cp -f $DB_DIR/v2/Shine/TPC/T0CalibrationData/EventByEvent/$T0_VERSION_OLD/* $DB_DIR/v2/Shine/TPC/T0CalibrationData/EventByEvent/$T0_VERSION_NEW/
+cp -f $DB_DIR/v2/Shine/DAQ/MHTDC/$DAQ_VERSION_OLD/* $DB_DIR/v2/Shine/DAQ/MHTDC/$DAQ_VERSION_NEW/
+
+cp TPCPhaseCalibration.xml $DB_DIR/v2/Shine/TPC/T0CalibrationData/EventByEvent/$T0_VERSION_NEW/
+cp MHTDCCalibration.xml $DB_DIR/v2/Shine/DAQ/MHTDC/$DAQ_VERSION_NEW/
+
+%ENDCODE%
+</sticky>   
+
+Update path to new files in 
+$DB_DIR/v2/Shine/detConfig/$DB_KEY_NEW/standardIdealDetConfig.xml
+
+TPC/T0CalibrationData/EventByEvent/$T0_VERSION_OLD/ -> TPC/T0CalibrationData/EventByEvent/$T0_VERSION_NEW/
+$DB_DIR/v2/Shine/DAQ/MHTDC/$DAQ_VERSION_OLD/ -> $DB_DIR/v2/Shine/DAQ/MHTDC/$DAQ_VERSION_NEW/
+
+---+++Stage2
+
+Modify files TpcCalibration/submit/condor_submit.sh TpcCalibration/submit/condor_run.sh (set path to your SHINE, output directories, global_key, ...) and then:
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+
+./condor_submit.sh filelist.txt out_dir_name 2
+
+%ENDCODE%
+</sticky>   
+
+also you can run with SHOE files, for that change line in condor_run
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+
+./runModuleSeq.sh -i $input_file_local -b bootstrap-pA.xml -k $GLOBAL_KEY &> $log_file
+->
+./runModuleSeq.sh -i $input_file_local -b bootstrap-reco.xml -k $GLOBAL_KEY &> $log_file
+%ENDCODE%
+</sticky>   
+
+After all jobs are done:
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+
+cd NewAnalyzer/
+g++ -o vD vDriftAnalyzerV.cpp `root-config --cflags --libs`
+g++ -o merge merge_output.C `root-config --cflags --libs`
+%ENDCODE%
+</sticky>   
+Modify files NewAnalyzer/condor/condor_submit.sh NewAnalyzer/condor/condor_run.sh (set path to your SHINE, output directories) and then:
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+cd NewAnalyzer/condor/
+./condor_submit.sh runs.txt out_dir_name
+%ENDCODE%
+</sticky>   
+
+runs.txt - list of runs to calibrate, for example:
+#ls stage2/out.dir | xargs -n 1 basename | cut -c16-21 | uniq > runs.txt (adjust 16-21 to print run numbers)
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+26887
+26888
+%ENDCODE%
+</sticky> 
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%
+./merge runs.txt /dir/with/runbyrun/files
+
+VD_VERSION_OLD=V44A
+VD_VERSION_NEW=V44latest
+
+mkdir -p $DB_DIR/v2/Shine/TPC/DriftVelocity/Calibrated/$VD_VERSION_NEW
+
+cp -f $DB_DIR/v2/Shine/TPC/DriftVelocity/Calibrated/$VD_VERSION_OLD $DB_DIR/v2/Shine/TPC/DriftVelocity/Calibrated/$VD_VERSION_NEW
+cp *.txt $DB_DIR/v2/Shine/TPC/DriftVelocity/Calibrated/$VD_VERSION_NEW
+
+%ENDCODE%
+</sticky>    
+
+Update path to new files in 
+$DB_DIR/v2/Shine/detConfig/$DB_KEY_NEW/standardIdealDetConfig.xml
+
+---+++Stage3
+
+In file bootstrap-pA.xml.in change
+<sticky>
+%CODE{lang="bash" [num="10"]}%     
+<!ENTITY standardIdealDetConfig SYSTEM '@SHINEDBDIR@/detConfig/YOUR_GLOBAL_KEY/standardIdealDetConfig.xml'>
+<!ENTITY setupLegacy '@SHINEDBDIR@/detConfig/YOUR_GLOBAL_KEY/SetupLegacy.xml'>
+%ENDCODE%
+</sticky>        
+
+After that
+
+<sticky>
+%CODE{lang="bash" [num="10"]}% 
+make clean && make
+%ENDCODE%
+</sticky>       
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%     
+
+./condor_submit.sh filelist.txt out_dir_name 3
+
+calibMerge -i `ls tpcBottomPoints*.root | head -c -1 | tr '\n' ','` -o mergedTPCBottomPoints.root
+./T0Calculator -i mergedTPCBottomPoints.root
+
+T0_CHAMBER_OLD=V44A
+T0_GLOBAL_OLD=V44A
+T0_CHAMBER_NEW=V44latest
+T0_GLOBAL_NEW=V44latest
+
+mkdir -p $DB_DIR/v2/Shine/TPC/T0CalibrationData/Chamber/$T0_CHAMBER_NEW
+mkdir -p $DB_DIR/v2/Shine/TPC/T0CalibrationData/Global/$T0_GLOBAL_NEW
+
+cp -f $DB_DIR/v2/Shine/TPC/T0CalibrationData/Chamber/$T0_CHAMBER_OLD/* $DB_DIR/v2/Shine/TPC/T0CalibrationData/Chamber/$T0_CHAMBER_NEW/
+cp -f $DB_DIR/v2/Shine/TPC/T0CalibrationData/Global/$T0_GLOBAL_OLD/* $DB_DIR/v2/Shine/TPC/T0CalibrationData/Global/$T0_GLOBAL_NEW/
+
+cp -f ChamberT0.xml $DB_DIR/v2/Shine/TPC/T0CalibrationData/Chamber/$T0_CHAMBER_NEW/
+cp -f GlobalT0.xml $DB_DIR/v2/Shine/TPC/T0CalibrationData/Global/$T0_GLOBAL_NEW/
+
+%ENDCODE%
+</sticky>       
+
+Update path to new files in 
+$DB_DIR/v2/Shine/detConfig/$DB_KEY_NEW/standardIdealDetConfig.xml
+
+---+++Stage4
+
+Same as stage2
+
+<sticky>
+%CODE{lang="bash" [num="10"]}%     
+
+TPC_ALIGNMENT_OLD=V44A
+TPC_ALIGNMENT_NEW=V44latest
+
+mkdir -p $DB_DIR/v2/Shine/TPC/Geometry/Alignment/$TPC_ALIGNMENT_NEW
+cp -f $DB_DIR/v2/Shine/TPC/Geometry/Alignment/$TPC_ALIGNMENT_OLD/* $DB_DIR/v2/Shine/TPC/Geometry/Alignment/$TPC_ALIGNMENT_NEW/
+
+FILE TPCAlignmentGeometry.xml CREATION TO BE ADDED TO NEW ANALYZER
+
+cp TPCAlignmentGeometry.xml $DB_DIR/v2/Shine/TPC/v2/Shine/TPC/Geometry/Alignment/$TPC_ALIGNMENT_NEW/
+%ENDCODE%
+</sticky>  
+
+Update path to new files in 
+$DB_DIR/v2/Shine/detConfig/$DB_KEY_NEW/standardIdealDetConfig.xml

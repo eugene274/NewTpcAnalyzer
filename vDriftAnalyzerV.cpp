@@ -1,6 +1,6 @@
 #include "vDriftAnalyzerV.h"
 #include <algorithm>
-#include <iomanip> 
+#include <iomanip>
 
 int main(int argc, char** argv)
 {
@@ -133,7 +133,7 @@ int main(int argc, char** argv)
   v_order.push_back("VTPC1vsVTPC2");
   v_order.push_back("MTPCRvsTOFR");
   v_order.push_back("VTPC2vsMTPCR");
-  v_order.push_back("GTPCvsVTPC2");
+//  v_order.push_back("GTPCvsVTPC2");
 
   std::vector <float> v_tpc_ymax = { 55, 55, 35, 55, 35, 15};
 
@@ -258,7 +258,7 @@ int main(int argc, char** argv)
           const float prev_offset = TofFactor[v_order.at(iPrevTPC)] * v_hist_offset.at(iPrevTPC)->GetBinContent(bin);
           dy += y * prev_slope + prev_offset;
         }
-      }   
+      }
       if ( TMath::Abs(dy) <= Ylimit ){
         v_dY_Y.back()->Fill( time, y, dy );
         v_vD.back()->Fill( time, inData[v_order.at(i)].slave_recVDrift );
@@ -279,7 +279,7 @@ int main(int argc, char** argv)
 
       //if (h->GetEntries() == 0) continue;  //Scott: this did not work for me - the variable is not set correctly
       //h->Fit("pol1", "Q");
-      if(h->Fit("pol1", "Q")!=0) continue; //Scott: this prevents bad fits from crashing the routine 
+      if(h->Fit("pol1", "Q")!=0) continue; //Scott: this prevents bad fits from crashing the routine
       const float slope = h->GetFunction("pol1")->GetParameter(1);
       const float slope_err = h->GetFunction("pol1")->GetParError(1);
 

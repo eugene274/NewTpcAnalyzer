@@ -17,17 +17,20 @@ struct CalibResults_t {
   TMultiGraph mgRecVDrift{};
   TMultiGraph mgCalibVDrift{};
 
+  bool recreateASCII{true};
+
   CalibResults_t () = default;
   CalibResults_t (const CalibResults_t& other) : det(other.det) {};
   explicit CalibResults_t(const string &det) : det(det) {}
 };
 
-void exportASCII(TGraph *graph, std::string filename) {
+void exportASCII(TGraph *graph, const std::string& filename, bool recreate = false) {
   if (!graph) {
     return;
   }
 
-  ofstream outputASCII(filename, ios_base::app);
+  auto mode = recreate? ios_base::trunc : ios_base::app;
+  ofstream outputASCII(filename, mode);
 
   for (int ip = 0; ip < graph->GetN(); ++ip) {
     double unixTime{-1};
@@ -80,7 +83,8 @@ int main(int argc, char **argv) {
       calibVDriftGraph->SetLineWidth(2);
       cr.mgCalibVDrift.Add(calibVDriftGraph, "p");
 
-      exportASCII(calibVDriftGraph, cr.det + ".txt");
+      exportASCII(calibVDriftGraph, cr.det + ".txt", cr.recreateASCII);
+      cr.recreateASCII = false;
     }
   }
 

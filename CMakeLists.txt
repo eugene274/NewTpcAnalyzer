@@ -9,7 +9,9 @@ include(${ROOT_USE_FILE})
 
 include_directories(.)
 
-
-
 add_executable(NewAnalyzer vDriftAnalyzerV.cpp vDriftAnalyzerV.h)
 target_link_libraries(NewAnalyzer PRIVATE ${ROOT_LIBRARIES})
+
+
+add_executable(vDriftExporter vDriftExporter.cpp)
+target_link_libraries(vDriftExporter PRIVATE ${ROOT_LIBRARIES})

@@ -4,11 +4,13 @@
 #include <TGraphErrors.h>
 #include <TChain.h>
 #include <TGraphSmooth.h>
+#include <TSystem.h>
 
 int main(int argc, char **argv) {
   std::cout << "Starting analyser." << std::endl;
 
   std::string iFileName;
+  std::string outputFileName{};
   TFile *inputFile;
   TFile *f_out;
   bool is_verbose;
@@ -30,17 +32,20 @@ int main(int argc, char **argv) {
   }
 
   for (int i = 1; i < argc; i++) {
-    if (std::string(argv[i]) != "-i" &&
-        std::string(argv[i]) != "-v" &&
-        std::string(argv[i]) != "--root-output" &&
-        std::string(argv[i]) != "--no-factor-multiplication" &&
-        std::string(argv[i]) != "--no-TOF-MTPC-factor" &&
-        std::string(argv[i]) != "--check-algorithm") {
+    if (
+        std::string(argv[i]) != "-i" &&
+            std::string(argv[i]) != "-o" &&
+            std::string(argv[i]) != "-v" &&
+            std::string(argv[i]) != "--root-output" &&
+            std::string(argv[i]) != "--no-factor-multiplication" &&
+            std::string(argv[i]) != "--no-TOF-MTPC-factor" &&
+            std::string(argv[i]) != "--check-algorithm") {
       std::cerr << "\n[ERROR]: Unknown parameter " << i << ": " << argv[i] << std::endl;
       Usage(argv);
       std::cout << "Analyzer finished with exit code " << error_code[1] << std::endl;
       return error_code[1];
     } else {
+      // input file
       if (std::string(argv[i]) == "-i" && i != argc - 1) {
         iFileName = argv[++i];
         continue;
@@ -51,6 +56,21 @@ int main(int argc, char **argv) {
         std::cout << "Analyzer finished with exit code " << error_code[2] << std::endl;
         return error_code[2];
       }
+
+      // output file
+      if (std::string(argv[i]) == "-o" && i != argc - 1) {
+        if (i != argc - 1) {
+          outputFileName = std::string(argv[++i]);
+        } else {
+          std::cerr << "\n[ERROR]: Output file name was not specified " << std::endl;
+          Usage(argv);
+          std::cout << "Analyzer finished with exit code " << error_code[2] << std::endl;
+          return error_code[2];
+        }
+        continue;
+      }
+
+
       if (std::string(argv[i]) == "-v") {
         is_verbose = true;
         continue;
@@ -76,8 +96,13 @@ int main(int argc, char **argv) {
   }
   //-------------------------------USAGE-----------(end)-------------------------//
 
+  if (outputFileName.empty()) {
+    outputFileName = std::string(gSystem->DirName(iFileName.c_str())) + "/vdCalibOutput.root";
+  }
+
   std::cout << "\nStarting options:" << std::endl;
-  std::cout << "\nFile        : " << iFileName.c_str() << std::endl;
+  std::cout << "\nInput file        : " << iFileName << std::endl;
+  std::cout << "\nOutput file        : " << outputFileName << std::endl;
   if (is_verbose) std::cout << "Verbose mode          : ON" << std::endl;
   if (!is_verbose) std::cout << "Verbose mode          : OFF" << std::endl;
   if (is_root_output) std::cout << "ROOT output           : ON" << std::endl;
@@ -86,9 +111,7 @@ int main(int argc, char **argv) {
   if (is_no_TOF_factor) std::cout << "MTPC-TOF factor       : OFF - !!! Make sure this is intentional !!!" << std::endl;
   std::cout << std::endl;
 
-  f_out = new TFile((iFileName + "_output.root").c_str(), "recreate");
-
-
+  f_out = new TFile(outputFileName.c_str(), "recreate");
 
   struct CalibTask_t {
     std::string tgtName{};
@@ -128,7 +151,6 @@ int main(int argc, char **argv) {
 
     TGraphErrors *slopeGraph_{nullptr};
     TGraphErrors *slopeGraphSmooth_{nullptr};
-
 
     bool isDone_{false};
 
@@ -241,7 +263,6 @@ int main(int argc, char **argv) {
 
     Info(__func__, "Processing %s", gSTATIC_INFO.at(calibTask.tgt).treeName);
 
-
     long nEntries = calibTask.sourceChain_->GetEntries();
     long iEntry = 0;
 
@@ -270,7 +291,7 @@ int main(int argc, char **argv) {
       float recVDrift = trackMatchData.slave_recVDrift;
 
       if (iRecVD == 0 || unixTime - calibTask.recVDriftGraph->GetX()[iRecVD - 1] > 5.) {
-        calibTask.recVDriftGraph->SetPoint(iRecVD, unixTime, 1000*recVDrift);
+        calibTask.recVDriftGraph->SetPoint(iRecVD, unixTime, 1000 * recVDrift);
         ++iRecVD;
       }
 
@@ -286,7 +307,6 @@ int main(int argc, char **argv) {
       if (abs(dy) < 2. && (calibTask.xLo < trackMatchData.master_X && trackMatchData.master_X < calibTask.xHi)) {
         calibTask.hdYvsY->Fill(y, dy);
         calibTask.pdYvsY->Fill(y, dy);
-
 
         ++iSliceEntries;
       }
@@ -348,7 +368,7 @@ int main(int argc, char **argv) {
       calibTask.slopeGraphSmooth_ =
           new TGraphErrors(*dynamic_cast<TGraphErrors *>(graphSmoothManager.SmoothLowess(calibTask.slopeGraph_,
                                                                                          "",
-                                                                                         span)));
+                                                                                         span, 5)));
       outDir->WriteObject(calibTask.slopeGraph_, "grSlope");
       outDir->WriteObject(calibTask.slopeGraphSmooth_, "grSlopeLowess");
       calibTask.slopeGraph_->SetBit(TGraph::kIsSortedX);
@@ -362,7 +382,7 @@ int main(int argc, char **argv) {
         double slope = calibTask.slopeGraphSmooth_->Eval(unixTime);
         double tofFactor = gSTATIC_INFO.at(calibTask.tgt).tofFactor;
 
-        double calibVDrift = recVDrift*1.0/(1 + tofFactor*slope);
+        double calibVDrift = recVDrift * 1.0 / (1 + tofFactor * slope);
         calibTask.calibVDriftGraph_->SetPoint(ip, unixTime, calibVDrift);
       }
       outDir->WriteObject(calibTask.calibVDriftGraph_, "grCalibVDrift");
@@ -374,7 +394,7 @@ int main(int argc, char **argv) {
       calibTask.offsetBottomGraphSmooth_ =
           new TGraphErrors(*dynamic_cast<TGraphErrors *>(graphSmoothManager.SmoothLowess(calibTask.offsetBottomGraph_,
                                                                                          "",
-                                                                                         span)));
+                                                                                         span, 5)));
       outDir->WriteObject(calibTask.offsetGraph_, "grOffset");
       outDir->WriteObject(calibTask.offsetBottomGraph_, "grOffsetBottom");
       outDir->WriteObject(calibTask.offsetBottomGraphSmooth_, "grOffsetBottomLowess");
@@ -388,6 +408,7 @@ int main(int argc, char **argv) {
   }
 
   f_out->Close();
+  Info(__func__, "File %s is written succesfully", f_out->GetName());
 
   std::cout << "\nAnalyzer finished successfully." << std::endl;
   return 0;

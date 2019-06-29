@@ -95,30 +95,6 @@ void Usage(char **arg_string) {
   std::cerr << "    ./vDriftAnalyzer -i /home/jdoe/input_file.root\n" << std::endl;
 }
 
-void GetCalibTreesFromFile(TFile *inFile, std::map<std::string, TTree *> &trees) {
-  trees["MTPCLvsTOFL"] = (TTree *) inFile->Get("MTPCLvsTOFL");
-  trees["MTPCRvsTOFR"] = (TTree *) inFile->Get("MTPCRvsTOFR");
-  trees["VTPC2vsMTPCL"] = (TTree *) inFile->Get("VTPC2vsMTPCL");
-  trees["VTPC2vsMTPCR"] = (TTree *) inFile->Get("VTPC2vsMTPCR");
-  trees["VTPC1vsVTPC2"] = (TTree *) inFile->Get("VTPC1vsVTPC2");
-  trees["GTPCvsVTPC2"] = (TTree *) inFile->Get("GTPCvsVTPC2");
-}
-
-void GetCalibTreesFromFile(TFile *inFile, std::array<TTree *, std::size_t(kDetPairs)> &treeArr) {
-
-  for (int iDetPair = 0; iDetPair < kDetPairs; ++iDetPair) {
-    TTree *tree = nullptr;
-    inFile->GetObject(gSTATIC_INFO.at(iDetPair).treeName, tree);
-    if (tree) {
-      Info(__func__, "Found tree %s", gSTATIC_INFO.at(iDetPair).treeName);
-      treeArr[iDetPair] = tree;
-    } else {
-      throw std::runtime_error("Tree is not found");
-    }
-  }
-
-}
-
 void ReadBranchesFromTree(TTree *tree, vDriftTreeStructure &data, std::string optSwap = "") {
   std::string s_name;
   s_name = (std::string) tree->GetName();
@@ -153,23 +129,6 @@ void ReadBranchesFromTree(TTree *tree, vDriftTreeStructure &data, std::string op
   tree->SetBranchAddress("runNumber", &data.runNumber);
   tree->SetBranchAddress("eventNumber", &data.eventNumber);
   tree->SetBranchAddress("eventUnixTime", &data.eventUnixTime);
-}
-
-inline bool check_file_exists(const std::string &name) {
-  struct stat buffer;
-  return (stat(name.c_str(), &buffer) == 0);
-}
-
-void Aggregate(std::string inFileName, std::string outFileName) {
-  std::ifstream infile(inFileName.c_str());
-  std::map<long int, double> mTimeVd;
-  long int t;
-  double vd;
-
-  while (infile >> t >> vd) {
-    mTimeVd[t] = vd;
-  }
-
 }
 
 #endif

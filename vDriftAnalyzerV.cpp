@@ -154,7 +154,7 @@ int main(int argc, char **argv) {
     int ny_{25};
     int ndy_{20};
 
-    double smoothingSpan_{300};
+    double smoothingSpan_{600};
 
     double yBottom_{0};
 
@@ -169,7 +169,9 @@ int main(int argc, char **argv) {
 
     TTree *sourceTree_{nullptr};
 
-    TGraph *recvDGraph{nullptr};
+    /*** results ***/
+    TGraph *recVDriftGraph{nullptr};
+    TGraphErrors *calibVDriftGraph_{nullptr};
 
     TGraphErrors *offsetGraph_{nullptr};
     TGraphErrors *offsetBottomGraph_{nullptr};
@@ -177,6 +179,7 @@ int main(int argc, char **argv) {
 
     TGraphErrors *slopeGraph_{nullptr};
     TGraphErrors *slopeGraphSmooth_{nullptr};
+
 
     bool isDone_{false};
 
@@ -231,7 +234,7 @@ int main(int argc, char **argv) {
       pdYvsY = new TProfile("pdYvsY", ";Y (cm); dY (cm)", ny_, yLo, yHi);
       pdYvsY->SetDirectory(nullptr);
 
-      recvDGraph = new TGraph;
+      recVDriftGraph = new TGraph;
 
       offsetGraph_ = new TGraphErrors;
       offsetBottomGraph_ = new TGraphErrors;
@@ -312,10 +315,10 @@ int main(int argc, char **argv) {
       long unixTime = trackMatchData.eventUnixTime;
       float dy = trackMatchData.slave_Y - trackMatchData.master_Y;
       float y = trackMatchData.master_Y;
-      float recVD = trackMatchData.slave_recVDrift;
+      float recVDrift = trackMatchData.slave_recVDrift;
 
-      if (iRecVD == 0 || unixTime - calibTask.recvDGraph->GetX()[iRecVD - 1] > 5.) {
-        calibTask.recvDGraph->SetPoint(iRecVD, unixTime, recVD);
+      if (iRecVD == 0 || unixTime - calibTask.recVDriftGraph->GetX()[iRecVD - 1] > 5.) {
+        calibTask.recVDriftGraph->SetPoint(iRecVD, unixTime, 1000*recVDrift);
         ++iRecVD;
       }
 
@@ -398,6 +401,20 @@ int main(int argc, char **argv) {
       outDir->WriteObject(calibTask.slopeGraphSmooth_, "grSlopeLowess");
       calibTask.slopeGraph_->SetBit(TGraph::kIsSortedX);
       calibTask.slopeGraphSmooth_->SetBit(TGraph::kIsSortedX);
+
+      calibTask.calibVDriftGraph_ = new TGraphErrors(calibTask.recVDriftGraph->GetN());
+      for (int ip = 0; ip < calibTask.calibVDriftGraph_->GetN(); ++ip) {
+        double unixTime{-1};
+        double recVDrift{-1};
+        calibTask.recVDriftGraph->GetPoint(ip, unixTime, recVDrift);
+        double slope = calibTask.slopeGraphSmooth_->Eval(unixTime);
+        double tofFactor = gSTATIC_INFO.at(calibTask.tgt).tofFactor;
+
+        double calibVDrift = recVDrift*1.0/(1 + tofFactor*slope);
+        calibTask.calibVDriftGraph_->SetPoint(ip, unixTime, calibVDrift);
+      }
+      outDir->WriteObject(calibTask.calibVDriftGraph_, "grCalibVDrift");
+
     }
 
     {
@@ -409,7 +426,7 @@ int main(int argc, char **argv) {
       outDir->WriteObject(calibTask.offsetGraph_, "grOffset");
       outDir->WriteObject(calibTask.offsetBottomGraph_, "grOffsetBottom");
       outDir->WriteObject(calibTask.offsetBottomGraphSmooth_, "grOffsetBottomLowess");
-      outDir->WriteObject(calibTask.recvDGraph, "grRecVD");
+      outDir->WriteObject(calibTask.recVDriftGraph, "grRecVDrift");
 
       calibTask.offsetGraph_->SetBit(TGraph::kIsSortedX);
       calibTask.offsetBottomGraph_->SetBit(TGraph::kIsSortedX);

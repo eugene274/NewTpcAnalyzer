@@ -6,20 +6,135 @@
 #include <TGraphSmooth.h>
 #include <TSystem.h>
 
+
+
+struct CalibTask_t {
+  std::string tgtName{};
+  ushort tgt{kDetPairs};
+  ushort upstream{kDetPairs};
+
+  /*** options ***/
+  bool swap_{false};
+  bool splitEvents_{false};
+  int nEntries_{1000};
+
+  int ny_{25};
+  int ndy_{20};
+
+  double slopeSmoothingSpan_{600};
+  double offsetSmoothingSpan_{3600};
+
+  double yBottom_{0};
+
+  double xLo{-999};
+  double xHi{999};
+
+  /*** slice data ***/
+  vDriftTreeStructure trackMatchData_{};
+
+  TH2D *hdYvsY{nullptr};
+  TProfile *pdYvsY{nullptr};
+
+  TChain *sourceChain_{nullptr};
+
+  /*** results ***/
+  TGraph *recVDriftGraph{nullptr};
+  TGraphErrors *calibVDriftGraph_{nullptr};
+
+  TGraphErrors *offsetGraph_{nullptr};
+  TGraphErrors *offsetBottomGraph_{nullptr};
+  TGraphErrors *offsetBottomGraphSmooth_{nullptr};
+
+  TGraphErrors *slopeGraph_{nullptr};
+  TGraphErrors *slopeGraphSmooth_{nullptr};
+
+  bool isDone_{false};
+
+  /*** c-tors ***/
+  CalibTask_t() = default;
+  CalibTask_t(const std::string &tgtName, ushort tgt, ushort upstream = kDetPairs)
+      : tgtName(tgtName), tgt(tgt), upstream(upstream) {}
+
+  /*** builder ***/
+  CalibTask_t &swap(bool swap = true) {
+    this->swap_ = swap;
+    return *this;
+  }
+
+  CalibTask_t &ne(int ne) {
+    this->nEntries_ = ne;
+    return *this;
+  }
+
+  CalibTask_t &ndy(int ndy) {
+    this->ndy_ = ndy;
+    return *this;
+  }
+
+  CalibTask_t &xLim(double lo, double hi) {
+    this->xLo = lo;
+    this->xHi = hi;
+    return *this;
+  }
+
+  CalibTask_t &bottom(double yb) {
+    this->yBottom_ = yb;
+    return *this;
+  }
+
+  CalibTask_t &smoSpan(double span) {
+    this->slopeSmoothingSpan_ = span;
+    return *this;
+  }
+
+  /*** initialization ***/
+  void initHistograms() {
+    delete hdYvsY;
+    delete pdYvsY;
+    delete slopeGraph_;
+    delete offsetGraph_;
+
+    float yLo = gSTATIC_INFO.at(tgt).yLimits.first;
+    float yHi = gSTATIC_INFO.at(tgt).yLimits.second;
+    hdYvsY = new TH2D("hdYvsY", ";Y (cm); dY (cm)", ny_, yLo, yHi, ndy_, -2., 2.);
+    hdYvsY->SetDirectory(nullptr);
+    pdYvsY = new TProfile("pdYvsY", ";Y (cm); dY (cm)", ny_, yLo, yHi);
+    pdYvsY->SetDirectory(nullptr);
+
+    recVDriftGraph = new TGraph;
+
+    offsetGraph_ = new TGraphErrors;
+    offsetBottomGraph_ = new TGraphErrors;
+
+    slopeGraph_ = new TGraphErrors;
+  }
+
+  void initInput(const std::string &fileName) {
+    delete sourceChain_;
+
+    sourceChain_ = new TChain(gSTATIC_INFO.at(tgt).treeName);
+    sourceChain_->Add(fileName.c_str());
+    sourceChain_->ls();
+    ReadBranchesFromTree(sourceChain_, trackMatchData_, swap_ ? "swap" : "");
+  }
+
+  /*** getters ***/
+  bool hasUpstream() const { return upstream < kDetPairs; };
+};
+
+
 int main(int argc, char **argv) {
   std::cout << "Starting analyser." << std::endl;
 
   std::string iFileName;
   std::string outputFileName{};
-  TFile *inputFile;
-  TFile *f_out;
+  TFile *outputFile;
   bool is_verbose;
   bool is_root_output;
   bool is_no_multiply;
   bool is_no_TOF_factor;
   // long int prev_time;
   std::string s_cut;
-  long int prev_time = 0;
   is_verbose = false;
   is_root_output = false;
   is_no_multiply = false;
@@ -70,7 +185,6 @@ int main(int argc, char **argv) {
         continue;
       }
 
-
       if (std::string(argv[i]) == "-v") {
         is_verbose = true;
         continue;
@@ -111,120 +225,7 @@ int main(int argc, char **argv) {
   if (is_no_TOF_factor) std::cout << "MTPC-TOF factor       : OFF - !!! Make sure this is intentional !!!" << std::endl;
   std::cout << std::endl;
 
-  f_out = new TFile(outputFileName.c_str(), "recreate");
-
-  struct CalibTask_t {
-    std::string tgtName{};
-    ushort tgt{kDetPairs};
-    ushort upstream{kDetPairs};
-
-    /*** options ***/
-    bool swap_{false};
-    bool splitEvents_{false};
-    int nEntries_{1000};
-
-    int ny_{25};
-    int ndy_{20};
-
-    double smoothingSpan_{600};
-
-    double yBottom_{0};
-
-    double xLo{-999};
-    double xHi{999};
-
-    /*** slice data ***/
-    vDriftTreeStructure trackMatchData_{};
-
-    TH2D *hdYvsY{nullptr};
-    TProfile *pdYvsY{nullptr};
-
-    TChain *sourceChain_{nullptr};
-
-    /*** results ***/
-    TGraph *recVDriftGraph{nullptr};
-    TGraphErrors *calibVDriftGraph_{nullptr};
-
-    TGraphErrors *offsetGraph_{nullptr};
-    TGraphErrors *offsetBottomGraph_{nullptr};
-    TGraphErrors *offsetBottomGraphSmooth_{nullptr};
-
-    TGraphErrors *slopeGraph_{nullptr};
-    TGraphErrors *slopeGraphSmooth_{nullptr};
-
-    bool isDone_{false};
-
-    /*** c-tors ***/
-    CalibTask_t() = default;
-    CalibTask_t(const std::string &tgtName, ushort tgt, ushort upstream = kDetPairs)
-        : tgtName(tgtName), tgt(tgt), upstream(upstream) {}
-
-    /*** builder ***/
-    CalibTask_t &swap(bool swap = true) {
-      this->swap_ = swap;
-      return *this;
-    }
-
-    CalibTask_t &ne(int ne) {
-      this->nEntries_ = ne;
-      return *this;
-    }
-
-    CalibTask_t &ndy(int ndy) {
-      this->ndy_ = ndy;
-      return *this;
-    }
-
-    CalibTask_t &xLim(double lo, double hi) {
-      this->xLo = lo;
-      this->xHi = hi;
-      return *this;
-    }
-
-    CalibTask_t &bottom(double yb) {
-      this->yBottom_ = yb;
-      return *this;
-    }
-
-    CalibTask_t &smoSpan(double span) {
-      this->smoothingSpan_ = span;
-      return *this;
-    }
-
-    /*** initialization ***/
-    void initHistograms() {
-      delete hdYvsY;
-      delete pdYvsY;
-      delete slopeGraph_;
-      delete offsetGraph_;
-
-      float yLo = gSTATIC_INFO.at(tgt).yLimits.first;
-      float yHi = gSTATIC_INFO.at(tgt).yLimits.second;
-      hdYvsY = new TH2D("hdYvsY", ";Y (cm); dY (cm)", ny_, yLo, yHi, ndy_, -2., 2.);
-      hdYvsY->SetDirectory(nullptr);
-      pdYvsY = new TProfile("pdYvsY", ";Y (cm); dY (cm)", ny_, yLo, yHi);
-      pdYvsY->SetDirectory(nullptr);
-
-      recVDriftGraph = new TGraph;
-
-      offsetGraph_ = new TGraphErrors;
-      offsetBottomGraph_ = new TGraphErrors;
-
-      slopeGraph_ = new TGraphErrors;
-    }
-
-    void initInput(const std::string &fileName) {
-      delete sourceChain_;
-
-      sourceChain_ = new TChain(gSTATIC_INFO.at(tgt).treeName);
-      sourceChain_->Add(fileName.c_str());
-      sourceChain_->ls();
-      ReadBranchesFromTree(sourceChain_, trackMatchData_, swap_ ? "swap" : "");
-    }
-
-    /*** getters ***/
-    bool hasUpstream() const { return upstream < kDetPairs; };
-  };
+  outputFile = new TFile(outputFileName.c_str(), "recreate");
 
   bool usePropagation = true;
 
@@ -259,7 +260,7 @@ int main(int argc, char **argv) {
       }
     }
 
-    TDirectory *outDir = f_out->mkdir(calibTask.tgtName.c_str(), "");
+    TDirectory *outDir = outputFile->mkdir(calibTask.tgtName.c_str(), "");
 
     Info(__func__, "Processing %s", gSTATIC_INFO.at(calibTask.tgt).treeName);
 
@@ -361,14 +362,15 @@ int main(int argc, char **argv) {
 
     double tStart = calibTask.slopeGraph_->GetX()[0];
     double tEnd = calibTask.slopeGraph_->GetX()[calibTask.slopeGraph_->GetN() - 1];
-    double span = calibTask.smoothingSpan_ / (tEnd - tStart);
+    double slopeSpan = calibTask.slopeSmoothingSpan_ / (tEnd - tStart);
+    double offsetSpan = calibTask.offsetSmoothingSpan_ / (tEnd - tStart);
 
     {
       TGraphSmooth graphSmoothManager;
       calibTask.slopeGraphSmooth_ =
           new TGraphErrors(*dynamic_cast<TGraphErrors *>(graphSmoothManager.SmoothLowess(calibTask.slopeGraph_,
                                                                                          "",
-                                                                                         span, 5)));
+                                                                                         slopeSpan, 5)));
       outDir->WriteObject(calibTask.slopeGraph_, "grSlope");
       outDir->WriteObject(calibTask.slopeGraphSmooth_, "grSlopeLowess");
       calibTask.slopeGraph_->SetBit(TGraph::kIsSortedX);
@@ -394,7 +396,7 @@ int main(int argc, char **argv) {
       calibTask.offsetBottomGraphSmooth_ =
           new TGraphErrors(*dynamic_cast<TGraphErrors *>(graphSmoothManager.SmoothLowess(calibTask.offsetBottomGraph_,
                                                                                          "",
-                                                                                         span, 5)));
+                                                                                         offsetSpan, 5)));
       outDir->WriteObject(calibTask.offsetGraph_, "grOffset");
       outDir->WriteObject(calibTask.offsetBottomGraph_, "grOffsetBottom");
       outDir->WriteObject(calibTask.offsetBottomGraphSmooth_, "grOffsetBottomLowess");
@@ -407,9 +409,9 @@ int main(int argc, char **argv) {
     calibTask.isDone_ = true;
   }
 
-  f_out->Close();
-  Info(__func__, "File %s is written succesfully", f_out->GetName());
+  outputFile->Close();
 
-  std::cout << "\nAnalyzer finished successfully." << std::endl;
+  Info(__func__, "File %s is written succesfully", outputFile->GetName());
+  Info(__func__, "Analyzer finished successfully.");
   return 0;
 }

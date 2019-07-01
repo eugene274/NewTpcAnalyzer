@@ -83,16 +83,13 @@ std::array<DetPairStaticInfo, std::size_t(kDetPairs)> gSTATIC_INFO{
 void Usage(char **arg_string) {
   std::cerr << "\nUsage: " << arg_string[0] << " [options] [argument]" << std::endl;
   std::cerr << "  Options:" << std::endl;
-  std::cerr << "    -i                         : use this option to add input file " << std::endl;
-  std::cerr << "    -v                         : verbose output " << std::endl;
-  std::cerr << "    --root-output              : adds root file to standard output " << std::endl;
-  std::cerr << "    --no-factor-multiplication : disable multiplication rule for calibration factor " << std::endl;
-  std::cerr << "    --no-TOF-MTPC-factor       : disable TOF-MTPC matching correction " << std::endl;
-  std::cerr
-      << "    --check-algorithm          : check the algorithm (multiplication rule & TOF-MTPC correction are off) "
-      << std::endl;
-  std::cerr << "  Example: " << std::endl;
-  std::cerr << "    ./vDriftAnalyzer -i /home/jdoe/input_file.root\n" << std::endl;
+  std::cerr << "    -i                         : set input file " << std::endl;
+  std::cerr << "    -o                         : set output file " << std::endl;
+//  std::cerr << "    --no-factor-multiplication : disable multiplication rule for calibration factor " << std::endl;
+//  std::cerr << "    --no-TOF-MTPC-factor       : disable TOF-MTPC matching correction " << std::endl;
+  std::cerr << "  Examples: " << std::endl;
+  std::cerr << "    ./vDriftAnalyzer -i input_file.root -o test.root" << std::endl;
+  std::cerr << "    ./vDriftAnalyzer -i \"*.root\"\n" << std::endl;
 }
 
 void ReadBranchesFromTree(TTree *tree, vDriftTreeStructure &data, std::string optSwap = "") {

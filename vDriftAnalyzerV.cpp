@@ -45,6 +45,9 @@ struct CalibTask_t {
   TGraphErrors *offsetBottomGraph_{nullptr};
   TGraphErrors *offsetBottomGraphSmooth_{nullptr};
 
+  TGraphErrors *offsetXGraph_{nullptr};
+  TGraphErrors *offsetXGraphSmooth_{nullptr};
+
   TGraphErrors *slopeGraph_{nullptr};
   TGraphErrors *slopeGraphSmooth_{nullptr};
 
@@ -82,7 +85,7 @@ struct CalibTask_t {
     return *this;
   }
 
-  CalibTask_t &smoSpan(double span) {
+  CalibTask_t &smoSpanSlope(double span) {
     this->slopeSmoothingSpan_ = span;
     return *this;
   }
@@ -93,6 +96,8 @@ struct CalibTask_t {
     delete pdYvsY;
     delete slopeGraph_;
     delete offsetGraph_;
+    delete offsetXGraph_;
+
 
     float yLo = gSTATIC_INFO.at(tgt).yLimits.first;
     float yHi = gSTATIC_INFO.at(tgt).yLimits.second;
@@ -105,6 +110,8 @@ struct CalibTask_t {
 
     offsetGraph_ = new TGraphErrors;
     offsetBottomGraph_ = new TGraphErrors;
+
+    offsetXGraph_ = new TGraphErrors;
 
     slopeGraph_ = new TGraphErrors;
   }
@@ -129,14 +136,10 @@ int main(int argc, char **argv) {
   std::string iFileName;
   std::string outputFileName{};
   TFile *outputFile;
-  bool is_verbose;
-  bool is_root_output;
   bool is_no_multiply;
   bool is_no_TOF_factor;
   // long int prev_time;
   std::string s_cut;
-  is_verbose = false;
-  is_root_output = false;
   is_no_multiply = false;
   is_no_TOF_factor = false;
 
@@ -150,11 +153,9 @@ int main(int argc, char **argv) {
     if (
         std::string(argv[i]) != "-i" &&
             std::string(argv[i]) != "-o" &&
-            std::string(argv[i]) != "-v" &&
-            std::string(argv[i]) != "--root-output" &&
             std::string(argv[i]) != "--no-factor-multiplication" &&
-            std::string(argv[i]) != "--no-TOF-MTPC-factor" &&
-            std::string(argv[i]) != "--check-algorithm") {
+            std::string(argv[i]) != "--no-TOF-MTPC-factor"
+            ) {
       std::cerr << "\n[ERROR]: Unknown parameter " << i << ": " << argv[i] << std::endl;
       Usage(argv);
       std::cout << "Analyzer finished with exit code " << error_code[1] << std::endl;
@@ -185,24 +186,11 @@ int main(int argc, char **argv) {
         continue;
       }
 
-      if (std::string(argv[i]) == "-v") {
-        is_verbose = true;
-        continue;
-      }
-      if (std::string(argv[i]) == "--root-output") {
-        is_root_output = true;
-        continue;
-      }
       if (std::string(argv[i]) == "--no-factor-multiplication") {
         is_no_multiply = true;
         continue;
       }
       if (std::string(argv[i]) == "--no-TOF-MTPC-factor") {
-        is_no_TOF_factor = true;
-        continue;
-      }
-      if (std::string(argv[i]) == "--check-algorithm") {
-        is_no_multiply = true;
         is_no_TOF_factor = true;
         continue;
       }
@@ -217,10 +205,6 @@ int main(int argc, char **argv) {
   std::cout << "\nStarting options:" << std::endl;
   std::cout << "\nInput file        : " << iFileName << std::endl;
   std::cout << "\nOutput file        : " << outputFileName << std::endl;
-  if (is_verbose) std::cout << "Verbose mode          : ON" << std::endl;
-  if (!is_verbose) std::cout << "Verbose mode          : OFF" << std::endl;
-  if (is_root_output) std::cout << "ROOT output           : ON" << std::endl;
-  if (!is_root_output) std::cout << "ROOT output           : OFF" << std::endl;
   if (is_no_multiply) std::cout << "Multiplication factor : OFF - !!! Make sure this is intentional !!!" << std::endl;
   if (is_no_TOF_factor) std::cout << "MTPC-TOF factor       : OFF - !!! Make sure this is intentional !!!" << std::endl;
   std::cout << std::endl;
@@ -230,11 +214,11 @@ int main(int argc, char **argv) {
   bool usePropagation = true;
 
   std::vector<CalibTask_t> calibTasks{
-      CalibTask_t("MTPCL", kMTPCLvsTOFL).ne(20000).smoSpan(1800).bottom(-60),
+      CalibTask_t("MTPCL", kMTPCLvsTOFL).ne(20000).smoSpanSlope(1800).smoSpanSlope(-60),
       CalibTask_t("VTPC2", kVTPC2vsMTPCL, kMTPCLvsTOFL).ne(2000).ndy(40).xLim(-110, 60).bottom(-55),
       CalibTask_t("VTPC1", kVTPC1vsVTPC2, kVTPC2vsMTPCL).ne(2000).ndy(40).bottom(-35),
       CalibTask_t("MTPCR", kVTPC2vsMTPCR, kVTPC2vsMTPCL).ne(2000).swap(),
-      CalibTask_t("MTPCRfromTOFR", kMTPCRvsTOFR).ne(20000).smoSpan(1800),
+      CalibTask_t("MTPCRfromTOFR", kMTPCRvsTOFR).ne(20000).smoSpanSlope(1800),
   };
 
   // TODO Order calibTasks
@@ -261,6 +245,7 @@ int main(int argc, char **argv) {
     }
 
     TDirectory *outDir = outputFile->mkdir(calibTask.tgtName.c_str(), "");
+    TDirectory *qaDir = outDir->mkdir("qa");
 
     Info(__func__, "Processing %s", gSTATIC_INFO.at(calibTask.tgt).treeName);
 
@@ -341,11 +326,11 @@ int main(int argc, char **argv) {
           calibTask.slopeGraph_->SetPoint(iSlice, sliceT, slope);
           calibTask.slopeGraph_->SetPointError(iSlice, 0., slopeError);
 
-          outDir->WriteObject(calibTask.hdYvsY, Form("hdYvsY_%d", iSlice));
-          outDir->WriteObject(calibTask.pdYvsY, Form("pdYvsY_%d", iSlice));
+          qaDir->WriteObject(calibTask.hdYvsY, Form("hdYvsY_%d", iSlice));
+          qaDir->WriteObject(calibTask.pdYvsY, Form("pdYvsY_%d", iSlice));
 
           Info(__func__, "Slice %d: %d entries", iSlice, iSliceEntries);
-          Info(__func__, "dT = %ld sec", dT);
+          Info(__func__, "T = %ld; dT = %ld sec", long(sliceT), dT);
           Info(__func__, "offset = %e +- %e (cm)", offset, offsetError);
           Info(__func__, "slope = %e +- %e (cm)", slope, slopeError);
 

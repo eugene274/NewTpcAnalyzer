@@ -68,11 +68,13 @@ slope/offset in MTPCL-TOFL will affect VTPC2-MTPCL and so on.
 #### Smoothing (new)
 
 To get rid of instability, a time-smoothing procedure is introduced.
-Before going to the new TPC, `offset (t)` and `slope (t)` is smoothed
-with Lowess algorithm. Lowess routine averages values locally. A time
-span of smoothing depends on quantity (slope/offset) and TPC. Reasonable
-value for slope is ~ several minutes (15 by default). We believe offset
-(alignment) is time-independent so 1-2 hours is reasonable value. 
+Before processing next TPC, `offset (t)` and `slope (t)` of the previous
+one are smoothed with Lowess algorithm. Lowess routine averages values
+locally. A time span of smoothing depends on quantity (slope/offset) and
+TPC. Reasonable value for slope is ~ several minutes (15 by default). We
+believe offset (alignment) is time-independent so 1-2 hours is
+reasonable value for offset. Smoothed values are used for propagation
+thus no instability appears.
 
 
 ### Configuration (TODO)

@@ -53,17 +53,18 @@ fixed number of tracks (2000 by default).
 #### Offset/slope propagation
 
 After we get `offset (t)` and `slope (t)` we can proceed to the next
-TPC. Our current TPC becomes reference fot the following one, so we have
-to estimate true values of `Y` with formula. 
+TPC. Our current TPC becomes reference for the following one, so we have
+to estimate true values of `Y`s with formula. 
 
 
 ```
 Y_prim = Y - Y*slope - offset
 ```
 
-where _slope_ and _offset_ are taken from previous step. Note, this step
-produces instability increasing from TPC to TPC: fluctuation of
-slope/offset in MTPCL-TOFL will affect VTPC2-MTPCL and so on.
+where _slope_ and _offset_ are taken from the previous step. This step
+was producing instability which is increasing from TPC to TPC:
+fluctuation of slope/offset in MTPCL-TOFL will affect VTPC2-MTPCL plus
+own fluctuations of VTPC2-MTPCL and so on.
 
 #### Smoothing (new)
 

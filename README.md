@@ -24,22 +24,23 @@ The script is based on Stage2 algorithm described here
 
 https://twiki.cern.ch/twiki/pub/NA61/TpcDvCalibrationInstructions/20149424_Calibration_chain_with_shine_offline.pdf
 
-For the calibration we use track matching details between TPCs
-(TOF-TPC):
+For the calibration we use track matching details between TPCs (or
+TOF-TPC). One TPC (or TOF) is our reference - we trust `Y` coordinates
+in the reference TPC. Another TPC we calibrate.
 
 `time` - Unix time
 
-`master_Y` - track c-te at the upstream TPC
+`master_Y` - track c-te in the reference TPC
 
 `slave_Y` - extrapolated track c-te of the downstream TPC to the plane
-of upstream TPC
+of the reference TPC
 
 
 Non-zero slope `S` of dependency `dY = (slave_Y - master_Y)_ vs
-_master_Y` indicates difference between true drift velocity and vD in
-database.
+_master_Y` indicates difference between true drift velocity and value in
+database used during reconstruction.
 
-Corrected vD is calculated using formula
+Corrected `vD` is calculated using formula
 
 ``` 
 vD(true) = vD(DB) * (1 + S)^-1
@@ -51,17 +52,19 @@ fixed number of tracks (2000 by default).
 
 #### Offset/slope propagation
 
-For `dY = (slave_Y - master_Y)` we believe upstream TPC represented by
-_master_Y_ is calibrated, so _master_Y_ is true Y in TPC. To satisfy
-this condition we estimate true 'Y' in upstream TPC.
+After we get `offset (t)` and `slope (t)` we can proceed to the next
+TPC. Our current TPC becomes reference fot the following one, so we have
+to estimate true values of `Y` with formula. 
+
 
 ```
 Y_prim = Y - Y*slope - offset
 ```
 
-where _slope_ and _offset_ are taken from previous step. This step
+where _slope_ and _offset_ are taken from previous step. Note, this step
 produces instability increasing from step to step: fluctuation of
-slope/offset in MTPCL-TOFL will affect VTPC2-MTPCL and so on.
+slope/offset in MTPCL-TOFL will affect VTPC2-MTPCL and so on till VTPC1
+and MTPCR .
 
 #### Smoothing (new)
 

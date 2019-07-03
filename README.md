@@ -36,8 +36,8 @@ in the reference TPC. Another TPC we calibrate.
 of the reference TPC
 
 
-Non-zero slope `S` of dependency `dY = (slave_Y - master_Y)_ vs
-_master_Y` indicates difference between true drift velocity and value in
+Non-zero slope `S` of dependency `dY = (slave_Y - master_Y)` vs
+`master_Y` indicates difference between true drift velocity and value in
 database used during reconstruction.
 
 Corrected `vD` is calculated using formula
@@ -62,16 +62,17 @@ Y_prim = Y - Y*slope - offset
 ```
 
 where _slope_ and _offset_ are taken from previous step. Note, this step
-produces instability increasing from step to step: fluctuation of
-slope/offset in MTPCL-TOFL will affect VTPC2-MTPCL and so on till VTPC1
-and MTPCR .
+produces instability increasing from TPC to TPC: fluctuation of
+slope/offset in MTPCL-TOFL will affect VTPC2-MTPCL and so on.
 
 #### Smoothing (new)
 
-To get rid of instability, time-smoothing procedure is introduced.
-Before going to the downstream TPC, offset and slope vs time is smoothed
-with Lowess algorithm with the specified time window (5 min for slope
-and 1 hour for offset).
+To get rid of instability, a time-smoothing procedure is introduced.
+Before going to the new TPC, `offset (t)` and `slope (t)` is smoothed
+with Lowess algorithm. Lowess routine averages values locally. A time
+span of smoothing depends on quantity (slope/offset) and TPC. Reasonable
+value for slope is ~ several minutes (15 by default). We believe offset
+(alignment) is time-independent so 1-2 hours is reasonable value. 
 
 
 ### Configuration (TODO)

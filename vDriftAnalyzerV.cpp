@@ -1,10 +1,16 @@
+
+#include <cassert>
+
+
 #include "vDriftAnalyzerV.h"
 #include <algorithm>
 #include <iomanip>
+#include <TGraph.h>
 #include <TGraphErrors.h>
 #include <TChain.h>
 #include <TGraphSmooth.h>
 #include <TSystem.h>
+#include <TError.h>
 
 
 
@@ -358,8 +364,8 @@ int main(int argc, char **argv) {
                                                                                          slopeSpan, 5)));
       outDir->WriteObject(calibTask.slopeGraph_, "grSlope");
       outDir->WriteObject(calibTask.slopeGraphSmooth_, "grSlopeLowess");
-      calibTask.slopeGraph_->SetBit(TGraph::kIsSortedX);
-      calibTask.slopeGraphSmooth_->SetBit(TGraph::kIsSortedX);
+//      calibTask.slopeGraph_->SetBit(TGraph::kIsSortedX);
+//      calibTask.slopeGraphSmooth_->SetBit(TGraph::kIsSortedX);
 
       calibTask.calibVDriftGraph_ = new TGraphErrors(calibTask.recVDriftGraph->GetN());
       for (int ip = 0; ip < calibTask.calibVDriftGraph_->GetN(); ++ip) {
@@ -387,9 +393,9 @@ int main(int argc, char **argv) {
       outDir->WriteObject(calibTask.offsetBottomGraphSmooth_, "grOffsetBottomLowess");
       outDir->WriteObject(calibTask.recVDriftGraph, "grRecVDrift");
 
-      calibTask.offsetGraph_->SetBit(TGraph::kIsSortedX);
-      calibTask.offsetBottomGraph_->SetBit(TGraph::kIsSortedX);
-      calibTask.offsetBottomGraphSmooth_->SetBit(TGraph::kIsSortedX);
+//      calibTask.offsetGraph_->SetBit(TGraph::kIsSortedX);
+//      calibTask.offsetBottomGraph_->SetBit(TGraph::kIsSortedX);
+//      calibTask.offsetBottomGraphSmooth_->SetBit(TGraph::kIsSortedX);
     }
     calibTask.isDone_ = true;
   }

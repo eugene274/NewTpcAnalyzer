@@ -7,6 +7,7 @@
 #include <TGraph.h>
 #include <TMultiGraph.h>
 #include <TFile.h>
+#include <TError.h>
 #include <fstream>
 
 using namespace std;

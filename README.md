@@ -27,27 +27,27 @@ https://twiki.cern.ch/twiki/pub/NA61/TpcDvCalibrationInstructions/20149424_Calib
 For the calibration we use track matching details between TPCs
 (TOF-TPC):
 
-time - Unix time
+`time` - Unix time
 
-master_Y - track c-te at the upstream TPC
+`master_Y` - track c-te at the upstream TPC
 
-slave_Y - extrapolated track c-te of the downstream TPC to the plane of
-upstream TPC
+`slave_Y` - extrapolated track c-te of the downstream TPC to the plane
+of upstream TPC
 
 
-Non-zero slope '_S_' of dependency `dY = (slave_Y - master_Y)_ vs
+Non-zero slope `S` of dependency `dY = (slave_Y - master_Y)_ vs
 _master_Y` indicates difference between true drift velocity and vD in
 database.
 
 Corrected vD is calculated using formula
 
 ``` 
-vD(true) = vD(DB) * (1 + s)^-1
+vD(true) = vD(DB) * (1 + S)^-1
 ```
 
 Since drift velocity is time-dependent quantity, measurement of slope is
-performed in time bins. Time slice is formed with configurable fixed
-number of tracks (2000 by default).
+performed in time bins. Time slice is formed with configurable, but
+fixed number of tracks (2000 by default).
 
 #### Offset/slope propagation
 
@@ -98,6 +98,15 @@ smoothed with Lowess algorithm
 MTPCL/grRecVDrift - Drift velocity from the DB
 
 **MTPCL/grCalibVDrift** - Drift Velocity after calibration
+
+### Getting *.txt for the DB
+
+To export calibration results to *.txt files, use special utility
+
+`./vDriftExporter vDCalibOutput-*.root`
+
+It produces output.root with QA plots and several txt files for each
+TPC.
 
 #### Notes
 

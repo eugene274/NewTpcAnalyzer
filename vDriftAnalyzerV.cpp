@@ -1,7 +1,6 @@
 
 #include <cassert>
 
-
 #include "vDriftAnalyzerV.h"
 #include <algorithm>
 #include <iomanip>
@@ -11,8 +10,7 @@
 #include <TGraphSmooth.h>
 #include <TSystem.h>
 #include <TError.h>
-
-
+#include <TFileCollection.h>
 
 struct CalibTask_t {
   std::string tgtName{};
@@ -104,7 +102,6 @@ struct CalibTask_t {
     delete offsetGraph_;
     delete offsetXGraph_;
 
-
     float yLo = gSTATIC_INFO.at(tgt).yLimits.first;
     float yHi = gSTATIC_INFO.at(tgt).yLimits.second;
     hdYvsY = new TH2D("hdYvsY", ";Y (cm); dY (cm)", ny_, yLo, yHi, ndy_, -2., 2.);
@@ -126,15 +123,35 @@ struct CalibTask_t {
     delete sourceChain_;
 
     sourceChain_ = new TChain(gSTATIC_INFO.at(tgt).treeName);
-    sourceChain_->Add(fileName.c_str());
+
+    if (endsWith(fileName, ".list")) {
+      TFileCollection fc("fc", "", fileName.c_str());
+      sourceChain_->AddFileInfoList(reinterpret_cast<TCollection *>(fc.GetList()));
+    } else {
+      sourceChain_->Add(fileName.c_str());
+    }
+
     sourceChain_->ls();
     ReadBranchesFromTree(sourceChain_, trackMatchData_, swap_ ? "swap" : "");
   }
 
   /*** getters ***/
   bool hasUpstream() const { return upstream < kDetPairs; };
-};
 
+  static bool endsWith(const std::string &str, const std::string &suffix) {
+    if (suffix.size() > str.size()) {
+      return false;
+    }
+
+    if (suffix.empty()) {
+      throw std::logic_error("suffix is empty");
+    }
+
+    std::string strEnd(str.end() - suffix.size(), str.end());
+    return strEnd == suffix;
+  }
+
+};
 
 int main(int argc, char **argv) {
   std::cout << "Starting analyser." << std::endl;
@@ -161,7 +178,7 @@ int main(int argc, char **argv) {
             std::string(argv[i]) != "-o" &&
             std::string(argv[i]) != "--no-factor-multiplication" &&
             std::string(argv[i]) != "--no-TOF-MTPC-factor"
-            ) {
+        ) {
       std::cerr << "\n[ERROR]: Unknown parameter " << i << ": " << argv[i] << std::endl;
       Usage(argv);
       std::cout << "Analyzer finished with exit code " << error_code[1] << std::endl;

@@ -90,6 +90,7 @@ void Usage(char **arg_string) {
   std::cerr << "  Examples: " << std::endl;
   std::cerr << "    ./vDriftAnalyzer -i input_file.root -o test.root" << std::endl;
   std::cerr << "    ./vDriftAnalyzer -i \"*.root\"\n" << std::endl;
+  std::cerr << "    ./vDriftAnalyzer -i \"filelist.list\"\n" << std::endl;
 }
 
 void ReadBranchesFromTree(TTree *tree, vDriftTreeStructure &data, std::string optSwap = "") {

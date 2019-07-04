@@ -84,10 +84,17 @@ thus no instability appears.
 
 ### Running Stage2
 
-To run calibration, type
+```
+Usage: ./NewAnalyzer [options] [argument]
+  Options:
+    -i                         : set input file or filelist (with .list suffix) 
+    -o                         : set output file 
+  Examples: 
+    ./vDriftAnalyzer -i input_file.root -o test.root
+    ./vDriftAnalyzer -i "*.root"
+    ./vDriftAnalyzer -i "filelist.list"
 
-` ./NewAnalyzer -i "<input files location>/trackMatchDump-*" -o
-"vDCalibOutput.root"`
+```
 
 `vDCalibOutput.root` contains QA histograms dY vs Y in time slices,
 TGraphs with offsets and slope:

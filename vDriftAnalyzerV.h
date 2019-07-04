@@ -83,13 +83,13 @@ std::array<DetPairStaticInfo, std::size_t(kDetPairs)> gSTATIC_INFO{
 void Usage(char **arg_string) {
   std::cerr << "\nUsage: " << arg_string[0] << " [options] [argument]" << std::endl;
   std::cerr << "  Options:" << std::endl;
-  std::cerr << "    -i                         : set input file " << std::endl;
+  std::cerr << "    -i                         : set input file or filelist (with .list suffix) " << std::endl;
   std::cerr << "    -o                         : set output file " << std::endl;
 //  std::cerr << "    --no-factor-multiplication : disable multiplication rule for calibration factor " << std::endl;
 //  std::cerr << "    --no-TOF-MTPC-factor       : disable TOF-MTPC matching correction " << std::endl;
   std::cerr << "  Examples: " << std::endl;
   std::cerr << "    ./vDriftAnalyzer -i input_file.root -o test.root" << std::endl;
-  std::cerr << "    ./vDriftAnalyzer -i \"*.root\"\n" << std::endl;
+  std::cerr << "    ./vDriftAnalyzer -i \"*.root\"" << std::endl;
   std::cerr << "    ./vDriftAnalyzer -i \"filelist.list\"\n" << std::endl;
 }
 

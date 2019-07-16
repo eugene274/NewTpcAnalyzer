@@ -117,15 +117,15 @@ struct CalibTask_t {
     pdYvsY = new TProfile("pdYvsY", ";Y (cm); dY (cm)", ny_, yLo, yHi);
     pdYvsY->SetDirectory(nullptr);
 
-    recVDriftGraph = new TGraph;
+    recVDriftGraph = newTimeGraph();
 
-    offsetGraph_ = new TGraphErrors;
-    offsetBottomGraph_ = new TGraphErrors;
-    offsetTopGraph_ = new TGraphErrors;
+    offsetGraph_ = newTimeGraph();
+    offsetBottomGraph_ = newTimeGraph();
+    offsetTopGraph_ = newTimeGraph();
 
-    offsetXGraph_ = new TGraphErrors;
+    offsetXGraph_ = newTimeGraph();
 
-    slopeGraph_ = new TGraphErrors;
+    slopeGraph_ = newTimeGraph();
   }
 
   void initInput(const std::string &fileName) {
@@ -158,6 +158,12 @@ struct CalibTask_t {
 
     std::string strEnd(str.end() - suffix.size(), str.end());
     return strEnd == suffix;
+  }
+
+  static TGraphErrors *newTimeGraph() {
+    auto graph = new TGraphErrors;
+    graph->GetXaxis()->SetTimeDisplay(1);
+    return graph;
   }
 
 };
@@ -296,6 +302,8 @@ int main(int argc, char **argv) {
     long sliceStartUnixTime = -1;
 
     int iRecVD = 0;
+
+
     while (iEntry < nEntries) {
       calibTask.sourceChain_->GetEntry(iEntry);
 
@@ -345,14 +353,23 @@ int main(int argc, char **argv) {
 
           double offset = fitFun->GetParameter(0);
           double offsetError = fitFun->GetParError(0);
-
-          double offsetBottom = fitFun->Eval(calibTask.yBottom_);
-          double offsetBottomError = offsetError; // TODO
-          double offsetTop = fitFun->Eval(calibTask.yTop_);
-          double offsetTopError = offsetError; // TODO
-
           double slope = fitFun->GetParameter(1);
           double slopeError = fitFun->GetParError(1);
+
+          // error propagation for the extrapolation
+          // offset = k y + off0
+          // doffset = sqrt (y dk)^2 + (doff0)^2
+          double offsetBottom = fitFun->Eval(calibTask.yBottom_);
+          double offsetBottomError = TMath::Sqrt(
+              (calibTask.yBottom_ * slopeError) * (calibTask.yBottom_ * slopeError) +
+              offsetError*offsetError
+              );
+          double offsetTop = fitFun->Eval(calibTask.yTop_);
+          double offsetTopError = TMath::Sqrt(
+              (calibTask.yTop_ * slopeError) * (calibTask.yTop_ * slopeError) +
+              offsetError*offsetError
+              );
+
 
           calibTask.offsetGraph_->SetPoint(iSlice, sliceT, offset);
           calibTask.offsetGraph_->SetPointError(iSlice, 0., offsetError);

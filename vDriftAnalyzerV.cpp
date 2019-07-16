@@ -174,12 +174,8 @@ int main(int argc, char **argv) {
   std::string iFileName;
   std::string outputFileName{};
   TFile *outputFile;
-  bool is_no_multiply;
-  bool is_no_TOF_factor;
   // long int prev_time;
   std::string s_cut;
-  is_no_multiply = false;
-  is_no_TOF_factor = false;
 
   //-------------------------------USAGE-----------------------------------------//
   if (argc < 3) {
@@ -224,14 +220,6 @@ int main(int argc, char **argv) {
         continue;
       }
 
-      if (std::string(argv[i]) == "--no-factor-multiplication") {
-        is_no_multiply = true;
-        continue;
-      }
-      if (std::string(argv[i]) == "--no-TOF-MTPC-factor") {
-        is_no_TOF_factor = true;
-        continue;
-      }
     }
   }
   //-------------------------------USAGE-----------(end)-------------------------//
@@ -243,8 +231,6 @@ int main(int argc, char **argv) {
   std::cout << "\nStarting options:" << std::endl;
   std::cout << "\nInput file        : " << iFileName << std::endl;
   std::cout << "\nOutput file        : " << outputFileName << std::endl;
-  if (is_no_multiply) std::cout << "Multiplication factor : OFF - !!! Make sure this is intentional !!!" << std::endl;
-  if (is_no_TOF_factor) std::cout << "MTPC-TOF factor       : OFF - !!! Make sure this is intentional !!!" << std::endl;
   std::cout << std::endl;
 
   outputFile = new TFile(outputFileName.c_str(), "recreate");
@@ -344,7 +330,7 @@ int main(int argc, char **argv) {
         if (calibTask.splitEvents_ || (currentEventNumber != trackMatchData.eventNumber)) {
 
           long sliceEndUnixTime = trackMatchData.eventUnixTime;
-          long dT = sliceEndUnixTime - sliceStartUnixTime;
+          long dT = sliceEndUnixTime - sliceStartUnixTime
           double sliceT = (sliceStartUnixTime + sliceEndUnixTime) / 2.;
 
           calibTask.pdYvsY->Fit("pol1", "Q", "");

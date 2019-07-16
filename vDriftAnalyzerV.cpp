@@ -29,6 +29,7 @@ struct CalibTask_t {
   double offsetSmoothingSpan_{3600};
 
   double yBottom_{0};
+  double yTop_{0};
 
   double xLo{-999};
   double xHi{999};
@@ -48,6 +49,8 @@ struct CalibTask_t {
   TGraphErrors *offsetGraph_{nullptr};
   TGraphErrors *offsetBottomGraph_{nullptr};
   TGraphErrors *offsetBottomGraphSmooth_{nullptr};
+  TGraphErrors *offsetTopGraph_{nullptr};
+  TGraphErrors *offsetTopGraphSmooth_{nullptr};
 
   TGraphErrors *offsetXGraph_{nullptr};
   TGraphErrors *offsetXGraphSmooth_{nullptr};
@@ -89,6 +92,11 @@ struct CalibTask_t {
     return *this;
   }
 
+  CalibTask_t &top(double yb) {
+    this->yTop_ = yb;
+    return *this;
+  }
+
   CalibTask_t &smoSpanSlope(double span) {
     this->slopeSmoothingSpan_ = span;
     return *this;
@@ -113,6 +121,7 @@ struct CalibTask_t {
 
     offsetGraph_ = new TGraphErrors;
     offsetBottomGraph_ = new TGraphErrors;
+    offsetTopGraph_ = new TGraphErrors;
 
     offsetXGraph_ = new TGraphErrors;
 
@@ -237,9 +246,12 @@ int main(int argc, char **argv) {
   bool usePropagation = true;
 
   std::vector<CalibTask_t> calibTasks{
-      CalibTask_t("MTPCL", kMTPCLvsTOFL).ne(20000).smoSpanSlope(1800).smoSpanSlope(-60),
-      CalibTask_t("VTPC2", kVTPC2vsMTPCL, kMTPCLvsTOFL).ne(2000).ndy(40).xLim(-110, 60).bottom(-55),
-      CalibTask_t("VTPC1", kVTPC1vsVTPC2, kVTPC2vsMTPCL).ne(2000).ndy(40).bottom(-35),
+      CalibTask_t("MTPCL", kMTPCLvsTOFL).ne(20000).smoSpanSlope(1800)
+          .bottom(-60).top(60),
+      CalibTask_t("VTPC2", kVTPC2vsMTPCL, kMTPCLvsTOFL).ne(2000).ndy(40).xLim(-110, 60)
+          .bottom(-55).top(55),
+      CalibTask_t("VTPC1", kVTPC1vsVTPC2, kVTPC2vsMTPCL).ne(2000).ndy(40)
+          .bottom(-35).top(35),
       CalibTask_t("MTPCR", kVTPC2vsMTPCR, kVTPC2vsMTPCL).ne(2000).swap(),
       CalibTask_t("MTPCRfromTOFR", kMTPCRvsTOFR).ne(20000).smoSpanSlope(1800),
   };
@@ -336,6 +348,8 @@ int main(int argc, char **argv) {
 
           double offsetBottom = fitFun->Eval(calibTask.yBottom_);
           double offsetBottomError = offsetError; // TODO
+          double offsetTop = fitFun->Eval(calibTask.yTop_);
+          double offsetTopError = offsetError; // TODO
 
           double slope = fitFun->GetParameter(1);
           double slopeError = fitFun->GetParError(1);
@@ -345,6 +359,9 @@ int main(int argc, char **argv) {
 
           calibTask.offsetBottomGraph_->SetPoint(iSlice, sliceT, offsetBottom);
           calibTask.offsetBottomGraph_->SetPointError(iSlice, 0., offsetBottomError);
+
+          calibTask.offsetTopGraph_->SetPoint(iSlice, sliceT, offsetTop);
+          calibTask.offsetTopGraph_->SetPointError(iSlice, 0., offsetTopError);
 
           calibTask.slopeGraph_->SetPoint(iSlice, sliceT, slope);
           calibTask.slopeGraph_->SetPointError(iSlice, 0., slopeError);
@@ -381,8 +398,6 @@ int main(int argc, char **argv) {
                                                                                          slopeSpan, 5)));
       outDir->WriteObject(calibTask.slopeGraph_, "grSlope");
       outDir->WriteObject(calibTask.slopeGraphSmooth_, "grSlopeLowess");
-//      calibTask.slopeGraph_->SetBit(TGraph::kIsSortedX);
-//      calibTask.slopeGraphSmooth_->SetBit(TGraph::kIsSortedX);
 
       calibTask.calibVDriftGraph_ = new TGraphErrors(calibTask.recVDriftGraph->GetN());
       for (int ip = 0; ip < calibTask.calibVDriftGraph_->GetN(); ++ip) {
@@ -396,6 +411,7 @@ int main(int argc, char **argv) {
         calibTask.calibVDriftGraph_->SetPoint(ip, unixTime, calibVDrift);
       }
       outDir->WriteObject(calibTask.calibVDriftGraph_, "grCalibVDrift");
+      outDir->WriteObject(calibTask.recVDriftGraph, "grRecVDrift");
 
     }
 
@@ -408,12 +424,20 @@ int main(int argc, char **argv) {
       outDir->WriteObject(calibTask.offsetGraph_, "grOffset");
       outDir->WriteObject(calibTask.offsetBottomGraph_, "grOffsetBottom");
       outDir->WriteObject(calibTask.offsetBottomGraphSmooth_, "grOffsetBottomLowess");
-      outDir->WriteObject(calibTask.recVDriftGraph, "grRecVDrift");
-
-//      calibTask.offsetGraph_->SetBit(TGraph::kIsSortedX);
-//      calibTask.offsetBottomGraph_->SetBit(TGraph::kIsSortedX);
-//      calibTask.offsetBottomGraphSmooth_->SetBit(TGraph::kIsSortedX);
     }
+
+
+    {
+      TGraphSmooth graphSmoothManager;
+      calibTask.offsetTopGraphSmooth_ =
+          new TGraphErrors(*dynamic_cast<TGraphErrors *>(graphSmoothManager.SmoothLowess(calibTask.offsetTopGraph_,
+                                                                                         "",
+                                                                                         offsetSpan, 5)));
+      outDir->WriteObject(calibTask.offsetTopGraph_, "grOffsetTop");
+      outDir->WriteObject(calibTask.offsetTopGraphSmooth_, "grOffsetTopLowess");
+    }
+
+
     calibTask.isDone_ = true;
   }
 

@@ -320,7 +320,7 @@ int main(int argc, char **argv) {
         assert(upstreamTask->isDone_);
         double tofFactor = gSTATIC_INFO.at(upstreamTask->tgt).tofFactor;
         double upstreamSlope = tofFactor * upstreamTask->slopeGraphSmooth_->Eval(unixTime);
-        double upstreamOffset = tofFactor * upstreamTask->offsetBottomGraphSmooth_->Eval(unixTime);
+        double upstreamOffset = tofFactor * upstreamTask->offsetTopGraphSmooth_->Eval(unixTime);
 
         dy += upstreamSlope * y + upstreamOffset;
       }

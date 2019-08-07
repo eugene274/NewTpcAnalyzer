@@ -11,6 +11,7 @@
 #include <TSystem.h>
 #include <TError.h>
 #include <TFileCollection.h>
+#include <TMath.h>
 
 struct CalibTask_t {
   std::string tgtName{};
@@ -330,7 +331,7 @@ int main(int argc, char **argv) {
         if (calibTask.splitEvents_ || (currentEventNumber != trackMatchData.eventNumber)) {
 
           long sliceEndUnixTime = trackMatchData.eventUnixTime;
-          long dT = sliceEndUnixTime - sliceStartUnixTime
+          long dT = sliceEndUnixTime - sliceStartUnixTime;
           double sliceT = (sliceStartUnixTime + sliceEndUnixTime) / 2.;
 
           calibTask.pdYvsY->Fit("pol1", "Q", "");

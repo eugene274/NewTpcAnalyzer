@@ -7,6 +7,7 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <TMath.h>
 #include <vector>
 #include <array>
 #include "TROOT.h"
